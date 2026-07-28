@@ -29,9 +29,12 @@
   th { text-align: left; padding: 10px 12px; color: var(--muted); font-size: 11px; letter-spacing: .4px;
     border-bottom: 1px solid var(--line); }
   td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 7px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 7px; flex: 0 0 auto; }
   .dot.on { background: var(--jade); box-shadow: 0 0 8px #3fa79688; }
-  .dot.off { background: #4a545c; }
+  .dot.off { background: var(--red); box-shadow: 0 0 8px #e8604c66; }
+  .status-cell { display: flex; align-items: center; gap: 0; white-space: nowrap; font-weight: 700; font-size: 12.5px; }
+  .status-cell.on { color: var(--jade); }
+  .status-cell.off { color: var(--red); }
   .pill { padding: 3px 9px; border-radius: 6px; font-weight: 700; font-size: 11px; }
   .pill.ok { background: #3fa79622; color: var(--jade); }
   .pill.warn { background: #e8a33d22; color: var(--amber); }
@@ -68,7 +71,12 @@
     <div class="field-label">Krijo Licencë të Re</div>
     <div class="grid" style="margin-bottom:10px;">
       <input id="newClient" placeholder="Emri i klientit" />
-      <input id="newProduct" placeholder="Programi (p.sh. ArkaPro)" />
+      <select id="newProduct">
+        <option value="HotelPro">HotelPro</option>
+        <option value="SofraPro">SofraPro</option>
+        <option value="DyqanPro">DyqanPro</option>
+        <option value="ArkaPro">ArkaPro</option>
+      </select>
       <select id="newDays">
         <option value="30">1 muaj</option>
         <option value="90">3 muaj</option>
@@ -95,6 +103,7 @@
 
 <script>
 let ADMIN_KEY = localStorage.getItem("licenseAdminKey") || "";
+const PROGRAMS = ["HotelPro", "SofraPro", "DyqanPro", "ArkaPro"];
 
 function toast(msg) {
   const t = document.getElementById("toast");
@@ -135,6 +144,8 @@ function fmtDate(ms) {
 async function refresh() {
   let list;
   try { list = await api("/api/admin/licenses"); } catch { return; }
+  // Online-t së pari, pastaj offline — që të dallohen menjëherë
+  list.sort((a, b) => (b.online - a.online) || (b.activatedAt - a.activatedAt));
   const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
   list.forEach((lic) => {
@@ -142,7 +153,11 @@ async function refresh() {
     const pillClass = lic.revoked ? "bad" : lic.daysLeft <= 0 ? "bad" : lic.daysLeft <= 14 ? "warn" : "ok";
     const pillText = lic.revoked ? "E revokuar" : lic.daysLeft <= 0 ? "Skaduar" : `${lic.daysLeft} ditë`;
     tr.innerHTML = `
-      <td><span class="dot ${lic.online ? "on" : "off"}" title="${lic.online ? "Online" : "Offline"}"></span></td>
+      <td>
+        <div class="status-cell ${lic.online ? "on" : "off"}">
+          <span class="dot ${lic.online ? "on" : "off"}"></span>${lic.online ? "Online" : "Offline"}
+        </div>
+      </td>
       <td class="editable" data-field="clientName" data-id="${lic.id}" title="Kliko për të ndryshuar">${lic.clientName}</td>
       <td class="editable" data-field="product" data-id="${lic.id}" title="Kliko për të ndryshuar">${lic.product}</td>
       <td class="key" title="Kliko për të kopjuar" onclick="copyKey('${lic.licenseKey}')">${lic.licenseKey}</td>
@@ -150,10 +165,13 @@ async function refresh() {
       <td><span class="pill ${pillClass}">${pillText}</span></td>
       <td>
         <div class="row-actions">
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',30)">+1M</button>
           <button class="btn-ghost" onclick="extend(this,'${lic.id}',-30)">-1M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',30)">+1M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-90)">-3M</button>
           <button class="btn-ghost" onclick="extend(this,'${lic.id}',90)">+3M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-182)">-6M</button>
           <button class="btn-ghost" onclick="extend(this,'${lic.id}',182)">+6M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-365)">-12M</button>
           <button class="btn-ghost" onclick="extend(this,'${lic.id}',365)">+12M</button>
           <button class="btn-ghost" onclick="revoke('${lic.id}')">${lic.revoked ? "Rikthe" : "Revoko"}</button>
           <button class="btn-danger" onclick="del('${lic.id}')">Fshi</button>
@@ -174,6 +192,34 @@ document.getElementById("tbody").addEventListener("click", (e) => {
   if (!cell || cell.querySelector("input")) return; // tashmë në edit
   const oldValue = cell.textContent;
   const id = cell.dataset.id, field = cell.dataset.field;
+
+  if (field === "product") {
+    // Programi editohet me zgjedhje (dropdown), jo tekst i lirë
+    const optionsHtml = PROGRAMS.map(p =>
+      `<option value="${p}" ${p === oldValue ? "selected" : ""}>${p}</option>`
+    ).join("");
+    cell.innerHTML = `<select>${optionsHtml}</select>`;
+    const select = cell.querySelector("select");
+    select.focus();
+
+    let done = false;
+    const save = async () => {
+      if (done) return;
+      done = true;
+      const newValue = select.value;
+      if (!newValue || newValue === oldValue) { cell.textContent = oldValue; return; }
+      cell.textContent = newValue;
+      try {
+        await api(`/api/admin/licenses/${id}`, { method: "PUT", body: JSON.stringify({ [field]: newValue }) });
+        toast("U ruajt");
+      } catch { toast("Gabim gjatë ruajtjes"); }
+      refresh();
+    };
+    select.addEventListener("change", save);
+    select.addEventListener("blur", () => { if (!done) { done = true; cell.textContent = oldValue; } });
+    return;
+  }
+
   cell.innerHTML = `<input type="text" value="${oldValue.replace(/"/g, '&quot;')}" />`;
   const input = cell.querySelector("input");
   input.focus();
