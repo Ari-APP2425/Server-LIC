@@ -100,7 +100,7 @@ app.get("/api/admin/licenses", requireAdmin, (req, res) => {
 });
 
 app.post("/api/admin/licenses", requireAdmin, (req, res) => {
-  const { clientName, product, durationDays } = req.body || {};
+  const { clientName, product, durationDays, phone, city, amountPaid } = req.body || {};
   if (!clientName || !product) {
     return res.status(400).json({ error: "clientName dhe product kërkohen" });
   }
@@ -110,6 +110,9 @@ app.post("/api/admin/licenses", requireAdmin, (req, res) => {
     licenseKey: genKey(),
     clientName,
     product,
+    phone: typeof phone === "string" ? phone.trim() : "",
+    city: typeof city === "string" ? city.trim() : "",
+    amountPaid: Number(amountPaid) > 0 ? Number(amountPaid) : 0,
     durationDays: Number(durationDays) > 0 ? Number(durationDays) : 365,
     activatedAt: Date.now(),
     lastSeen: null,
@@ -136,14 +139,17 @@ app.post("/api/admin/licenses/:id/extend", requireAdmin, (req, res) => {
   res.json(withComputed(lic));
 });
 
-// Editon emrin e klientit dhe/ose programin e një licence ekzistuese (pa e fshirë e rikrijuar).
+// Editon të dhënat e një licence ekzistuese (pa e fshirë e rikrijuar).
 app.put("/api/admin/licenses/:id", requireAdmin, (req, res) => {
-  const { clientName, product } = req.body || {};
+  const { clientName, product, phone, city, amountPaid } = req.body || {};
   const db = readDB();
   const lic = db.licenses.find((l) => l.id === req.params.id);
   if (!lic) return res.status(404).json({ error: "S'u gjet" });
   if (typeof clientName === "string" && clientName.trim()) lic.clientName = clientName.trim();
   if (typeof product === "string" && product.trim()) lic.product = product.trim();
+  if (typeof phone === "string") lic.phone = phone.trim();
+  if (typeof city === "string") lic.city = city.trim();
+  if (amountPaid !== undefined && Number.isFinite(Number(amountPaid))) lic.amountPaid = Number(amountPaid);
   writeDB(db);
   res.json(withComputed(lic));
 });
