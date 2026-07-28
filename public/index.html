@@ -37,6 +37,11 @@
   .pill.warn { background: #e8a33d22; color: var(--amber); }
   .pill.bad { background: #e8604c22; color: var(--red); }
   .key { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .editable { cursor: text; border-radius: 6px; }
+  .editable:hover { background: var(--panel2); }
+  .editable input { background: var(--panel2); border: 1px solid var(--jade); color: var(--text);
+    border-radius: 6px; padding: 5px 8px; font-size: 13px; font-family: inherit; width: 100%; outline: none; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
   .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .gate { max-width: 360px; margin: 100px auto; }
   .field-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
@@ -71,7 +76,7 @@
         <option value="365" selected>12 muaj</option>
       </select>
     </div>
-    <button class="btn-primary" onclick="createLicense()">Krijo Licencën</button>
+    <button class="btn-primary" id="createBtn" onclick="createLicense()">Krijo Licencën</button>
   </div>
 
   <div class="card" style="padding:0; overflow-x:auto;">
@@ -138,17 +143,18 @@ async function refresh() {
     const pillText = lic.revoked ? "E revokuar" : lic.daysLeft <= 0 ? "Skaduar" : `${lic.daysLeft} ditë`;
     tr.innerHTML = `
       <td><span class="dot ${lic.online ? "on" : "off"}" title="${lic.online ? "Online" : "Offline"}"></span></td>
-      <td>${lic.clientName}</td>
-      <td>${lic.product}</td>
+      <td class="editable" data-field="clientName" data-id="${lic.id}" title="Kliko për të ndryshuar">${lic.clientName}</td>
+      <td class="editable" data-field="product" data-id="${lic.id}" title="Kliko për të ndryshuar">${lic.product}</td>
       <td class="key" title="Kliko për të kopjuar" onclick="copyKey('${lic.licenseKey}')">${lic.licenseKey}</td>
       <td>${fmtDate(lic.expiresAt)}</td>
       <td><span class="pill ${pillClass}">${pillText}</span></td>
       <td>
         <div class="row-actions">
-          <button class="btn-ghost" onclick="extend('${lic.id}',30)">+1M</button>
-          <button class="btn-ghost" onclick="extend('${lic.id}',90)">+3M</button>
-          <button class="btn-ghost" onclick="extend('${lic.id}',182)">+6M</button>
-          <button class="btn-ghost" onclick="extend('${lic.id}',365)">+12M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',30)">+1M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-30)">-1M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',90)">+3M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',182)">+6M</button>
+          <button class="btn-ghost" onclick="extend(this,'${lic.id}',365)">+12M</button>
           <button class="btn-ghost" onclick="revoke('${lic.id}')">${lic.revoked ? "Rikthe" : "Revoko"}</button>
           <button class="btn-danger" onclick="del('${lic.id}')">Fshi</button>
         </div>
@@ -162,24 +168,69 @@ function copyKey(key) {
   toast("Çelësi u kopjua: " + key);
 }
 
+// --- Editim inline i klientit/programit (pa fshi/rikrijo licencën) ---
+document.getElementById("tbody").addEventListener("click", (e) => {
+  const cell = e.target.closest(".editable");
+  if (!cell || cell.querySelector("input")) return; // tashmë në edit
+  const oldValue = cell.textContent;
+  const id = cell.dataset.id, field = cell.dataset.field;
+  cell.innerHTML = `<input type="text" value="${oldValue.replace(/"/g, '&quot;')}" />`;
+  const input = cell.querySelector("input");
+  input.focus();
+  input.select();
+
+  let done = false;
+  const save = async () => {
+    if (done) return;
+    done = true;
+    const newValue = input.value.trim();
+    if (!newValue || newValue === oldValue) { cell.textContent = oldValue; return; }
+    cell.textContent = newValue; // optimistike, kthehet mbrapsht nga refresh() nëse dështon
+    try {
+      await api(`/api/admin/licenses/${id}`, { method: "PUT", body: JSON.stringify({ [field]: newValue }) });
+      toast("U ruajt");
+    } catch { toast("Gabim gjatë ruajtjes"); }
+    refresh();
+  };
+  input.addEventListener("blur", save);
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") input.blur();
+    if (ev.key === "Escape") { done = true; cell.textContent = oldValue; }
+  });
+});
+
 async function createLicense() {
   const clientName = document.getElementById("newClient").value.trim();
   const product = document.getElementById("newProduct").value.trim();
   const durationDays = document.getElementById("newDays").value;
   if (!clientName || !product) { toast("Vendos klientin dhe programin"); return; }
-  const lic = await api("/api/admin/licenses", {
-    method: "POST",
-    body: JSON.stringify({ clientName, product, durationDays }),
-  });
-  document.getElementById("newClient").value = "";
-  document.getElementById("newProduct").value = "";
-  toast("Licenca u krijua: " + lic.licenseKey);
-  refresh();
+  const btn = document.getElementById("createBtn");
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const lic = await api("/api/admin/licenses", {
+      method: "POST",
+      body: JSON.stringify({ clientName, product, durationDays }),
+    });
+    document.getElementById("newClient").value = "";
+    document.getElementById("newProduct").value = "";
+    toast("Licenca u krijua: " + lic.licenseKey);
+    refresh();
+  } finally {
+    btn.disabled = false;
+  }
 }
 
-async function extend(id, days) {
-  await api(`/api/admin/licenses/${id}/extend`, { method: "POST", body: JSON.stringify({ days }) });
-  refresh();
+async function extend(btn, id, days) {
+  if (btn.disabled) return; // mbrojtje nga dopio-klik (p.sh. +1M i shtuar 2 herë gabimisht)
+  btn.disabled = true;
+  try {
+    await api(`/api/admin/licenses/${id}/extend`, { method: "POST", body: JSON.stringify({ days }) });
+    toast((days > 0 ? "+" : "") + days + " ditë u aplikuan");
+    refresh();
+  } finally {
+    setTimeout(() => { btn.disabled = false; }, 800);
+  }
 }
 async function revoke(id) {
   await api(`/api/admin/licenses/${id}/revoke`, { method: "POST" });
