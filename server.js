@@ -59,12 +59,14 @@ app.use(express.json({ limit: "1mb" }));
 // Aplikacioni dërgon heartbeat çdo pak minuta me çelësin e tij.
 // Përgjigjja i thotë nëse është ende valide dhe sa ditë i mbeten.
 app.post("/api/heartbeat", (req, res) => {
-  const { licenseKey, product, deviceId } = req.body || {};
-  if (!licenseKey || !product) {
-    return res.status(400).json({ valid: false, error: "licenseKey dhe product kërkohen" });
+  const { licenseKey, deviceId } = req.body || {};
+  if (!licenseKey) {
+    return res.status(400).json({ valid: false, error: "licenseKey kërkohet" });
   }
   const db = readDB();
-  const lic = db.licenses.find((l) => l.licenseKey === licenseKey && l.product === product);
+  // Kërkojmë vetëm me licenseKey — jo edhe me "product", sepse emri i programit
+  // mund të ndryshojë më vonë dhe s'duam që kjo të prishë licencat ekzistuese.
+  const lic = db.licenses.find((l) => l.licenseKey === licenseKey);
   if (!lic) return res.status(404).json({ valid: false, error: "Licencë e panjohur" });
 
   lic.lastSeen = Date.now();
@@ -121,10 +123,27 @@ app.post("/api/admin/licenses", requireAdmin, (req, res) => {
 
 app.post("/api/admin/licenses/:id/extend", requireAdmin, (req, res) => {
   const { days } = req.body || {};
+  const delta = Number(days);
+  if (!Number.isFinite(delta)) {
+    return res.status(400).json({ error: "days kërkohet (numër, mund të jetë negativ p.sh. -30 për ta korrigjuar)" });
+  }
   const db = readDB();
   const lic = db.licenses.find((l) => l.id === req.params.id);
   if (!lic) return res.status(404).json({ error: "S'u gjet" });
-  lic.durationDays += Number(days) || 365;
+  // Lejojmë delta negative (p.sh. -30) për të korrigjuar shtim aksidental te dyfishtë.
+  lic.durationDays = Math.max(0, lic.durationDays + delta);
+  writeDB(db);
+  res.json(withComputed(lic));
+});
+
+// Editon emrin e klientit dhe/ose programin e një licence ekzistuese (pa e fshirë e rikrijuar).
+app.put("/api/admin/licenses/:id", requireAdmin, (req, res) => {
+  const { clientName, product } = req.body || {};
+  const db = readDB();
+  const lic = db.licenses.find((l) => l.id === req.params.id);
+  if (!lic) return res.status(404).json({ error: "S'u gjet" });
+  if (typeof clientName === "string" && clientName.trim()) lic.clientName = clientName.trim();
+  if (typeof product === "string" && product.trim()) lic.product = product.trim();
   writeDB(db);
   res.json(withComputed(lic));
 });
