@@ -14,7 +14,7 @@
     margin: 0; background: var(--bg); color: var(--text);
     font-family: 'Inter', system-ui, sans-serif; min-height: 100vh;
   }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+  .wrap { max-width: 1500px; margin: 0 auto; padding: 28px 20px 60px; }
   h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 20px; }
@@ -51,6 +51,12 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px; }
   #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--panel2);
     border: 1px solid var(--jade); padding: 10px 18px; border-radius: 10px; font-size: 13px; display: none; }
+  .seg { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { border-radius: 0; padding: 9px 10px; }
+  .seg .seg-label { padding: 0 8px; font-size: 12px; color: var(--muted); font-weight: 700;
+    display: flex; align-items: center; border-left: 1px solid var(--line); border-right: 1px solid var(--line); white-space: nowrap; }
+  .filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .filter-btn.active { background: var(--jade); color: #0d1512; border-color: var(--jade); }
 </style>
 </head>
 <body>
@@ -86,6 +92,13 @@
       </select>
     </div>
     <button class="btn-primary" id="createBtn" onclick="createLicense()">Krijo Licencën</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="field-label" style="margin:0;">Shfaq:</div>
+    <button class="btn-ghost filter-btn active" data-filter="online" onclick="setFilter('online')">Online</button>
+    <button class="btn-ghost filter-btn" data-filter="offline" onclick="setFilter('offline')">Offline &amp; Skaduar</button>
+    <button class="btn-ghost filter-btn" data-filter="all" onclick="setFilter('all')">Të gjitha</button>
   </div>
 
   <div class="card" style="padding:0; overflow-x:auto;">
@@ -147,11 +160,29 @@ function fmtMoney(n) {
   return v ? v.toLocaleString("sq-AL", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " €" : "—";
 }
 
+let filterMode = localStorage.getItem("licenseFilterMode") || "online";
+
+function setFilter(mode) {
+  filterMode = mode;
+  localStorage.setItem("licenseFilterMode", mode);
+  document.querySelectorAll(".filter-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.filter === mode);
+  });
+  refresh();
+}
+
 async function refresh() {
   let list;
   try { list = await api("/api/admin/licenses"); } catch { return; }
   // Online-t së pari, pastaj offline — që të dallohen menjëherë
   list.sort((a, b) => (b.online - a.online) || (b.activatedAt - a.activatedAt));
+
+  if (filterMode === "online") {
+    list = list.filter((lic) => lic.online);
+  } else if (filterMode === "offline") {
+    list = list.filter((lic) => !lic.online || lic.expired);
+  } // "all" nuk filtron asgjë
+
   const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
   list.forEach((lic) => {
@@ -174,9 +205,16 @@ async function refresh() {
       <td><span class="pill ${pillClass}">${pillText}</span></td>
       <td>
         <div class="row-actions">
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-30)">-1M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',30)">+1M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',365)">+12M</button>
+          <div class="seg">
+            <button class="btn-ghost" onclick="extend(this,'${lic.id}',-30)" title="Hiq 1 muaj">−</button>
+            <span class="seg-label">1M</span>
+            <button class="btn-ghost" onclick="extend(this,'${lic.id}',30)" title="Shto 1 muaj">+</button>
+          </div>
+          <div class="seg">
+            <button class="btn-ghost" onclick="extend(this,'${lic.id}',-365)" title="Hiq 12 muaj">−</button>
+            <span class="seg-label">12M</span>
+            <button class="btn-ghost" onclick="extend(this,'${lic.id}',365)" title="Shto 12 muaj">+</button>
+          </div>
           <input type="number" class="months-input" placeholder="muaj" style="width:64px; padding:9px 8px;" />
           <button class="btn-ghost" onclick="applyCustomMonths(this,'${lic.id}')">Apliko</button>
           <button class="btn-ghost" onclick="revoke('${lic.id}')">${lic.revoked ? "Rikthe" : "Revoko"}</button>
@@ -208,6 +246,7 @@ document.getElementById("tbody").addEventListener("click", (e) => {
     cell.innerHTML = `<select>${optionsHtml}</select>`;
     const select = cell.querySelector("select");
     select.focus();
+    try { select.showPicker(); } catch { /* browser i vjetër — kërkon një klikim shtesë */ }
 
     let done = false;
     const save = async () => {
@@ -320,6 +359,9 @@ async function del(id) {
   refresh();
 }
 
+document.querySelectorAll(".filter-btn").forEach((b) => {
+  b.classList.toggle("active", b.dataset.filter === filterMode);
+});
 if (ADMIN_KEY) showApp(); else showGate();
 setInterval(() => { if (document.getElementById("app").style.display !== "none") refresh(); }, 15000);
 </script>
