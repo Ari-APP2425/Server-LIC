@@ -71,16 +71,17 @@
     <div class="field-label">Krijo Licencë të Re</div>
     <div class="grid" style="margin-bottom:10px;">
       <input id="newClient" placeholder="Emri i klientit" />
+      <input id="newPhone" placeholder="Nr. Telefoni" />
+      <input id="newCity" placeholder="Qyteti" />
       <select id="newProduct">
         <option value="HotelPro">HotelPro</option>
         <option value="SofraPro">SofraPro</option>
         <option value="DyqanPro">DyqanPro</option>
         <option value="ArkaPro">ArkaPro</option>
       </select>
+      <input id="newAmount" type="number" min="0" step="0.01" placeholder="Shuma e Paguar (€)" />
       <select id="newDays">
         <option value="30">1 muaj</option>
-        <option value="90">3 muaj</option>
-        <option value="182">6 muaj</option>
         <option value="365" selected>12 muaj</option>
       </select>
     </div>
@@ -91,7 +92,7 @@
     <table>
       <thead>
         <tr>
-          <th></th><th>Klienti</th><th>Programi</th><th>Çelësi</th><th>Skadon</th><th>Ditë Mbetur</th><th></th>
+          <th></th><th>Klienti</th><th>Telefoni</th><th>Qyteti</th><th>Programi</th><th>Çelësi</th><th>Shuma</th><th>Skadon</th><th>Ditë Mbetur</th><th></th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -141,6 +142,11 @@ function fmtDate(ms) {
   return new Date(ms).toLocaleDateString("sq-AL", { year: "numeric", month: "short", day: "numeric" });
 }
 
+function fmtMoney(n) {
+  const v = Number(n) || 0;
+  return v ? v.toLocaleString("sq-AL", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " €" : "—";
+}
+
 async function refresh() {
   let list;
   try { list = await api("/api/admin/licenses"); } catch { return; }
@@ -159,20 +165,20 @@ async function refresh() {
         </div>
       </td>
       <td class="editable" data-field="clientName" data-id="${lic.id}" title="Kliko për të ndryshuar">${lic.clientName}</td>
+      <td class="editable" data-field="phone" data-id="${lic.id}" data-raw="${(lic.phone || "").replace(/"/g, '&quot;')}" title="Kliko për të ndryshuar">${lic.phone || "—"}</td>
+      <td class="editable" data-field="city" data-id="${lic.id}" data-raw="${(lic.city || "").replace(/"/g, '&quot;')}" title="Kliko për të ndryshuar">${lic.city || "—"}</td>
       <td class="editable" data-field="product" data-id="${lic.id}" title="Kliko për të ndryshuar">${lic.product}</td>
       <td class="key" title="Kliko për të kopjuar" onclick="copyKey('${lic.licenseKey}')">${lic.licenseKey}</td>
+      <td class="editable" data-field="amountPaid" data-id="${lic.id}" data-raw="${lic.amountPaid || 0}" title="Kliko për të ndryshuar">${fmtMoney(lic.amountPaid)}</td>
       <td>${fmtDate(lic.expiresAt)}</td>
       <td><span class="pill ${pillClass}">${pillText}</span></td>
       <td>
         <div class="row-actions">
           <button class="btn-ghost" onclick="extend(this,'${lic.id}',-30)">-1M</button>
           <button class="btn-ghost" onclick="extend(this,'${lic.id}',30)">+1M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-90)">-3M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',90)">+3M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-182)">-6M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',182)">+6M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-365)">-12M</button>
           <button class="btn-ghost" onclick="extend(this,'${lic.id}',365)">+12M</button>
+          <input type="number" class="months-input" placeholder="muaj" style="width:64px; padding:9px 8px;" />
+          <button class="btn-ghost" onclick="applyCustomMonths(this,'${lic.id}')">Apliko</button>
           <button class="btn-ghost" onclick="revoke('${lic.id}')">${lic.revoked ? "Rikthe" : "Revoko"}</button>
           <button class="btn-danger" onclick="del('${lic.id}')">Fshi</button>
         </div>
@@ -191,6 +197,7 @@ document.getElementById("tbody").addEventListener("click", (e) => {
   const cell = e.target.closest(".editable");
   if (!cell || cell.querySelector("input")) return; // tashmë në edit
   const oldValue = cell.textContent;
+  const rawValue = cell.dataset.raw !== undefined ? cell.dataset.raw : oldValue;
   const id = cell.dataset.id, field = cell.dataset.field;
 
   if (field === "product") {
@@ -220,7 +227,8 @@ document.getElementById("tbody").addEventListener("click", (e) => {
     return;
   }
 
-  cell.innerHTML = `<input type="text" value="${oldValue.replace(/"/g, '&quot;')}" />`;
+  const isNumber = field === "amountPaid";
+  cell.innerHTML = `<input type="${isNumber ? "number" : "text"}" ${isNumber ? 'step="0.01" min="0"' : ""} value="${rawValue.replace(/"/g, '&quot;')}" />`;
   const input = cell.querySelector("input");
   input.focus();
   input.select();
@@ -229,9 +237,10 @@ document.getElementById("tbody").addEventListener("click", (e) => {
   const save = async () => {
     if (done) return;
     done = true;
-    const newValue = input.value.trim();
-    if (!newValue || newValue === oldValue) { cell.textContent = oldValue; return; }
-    cell.textContent = newValue; // optimistike, kthehet mbrapsht nga refresh() nëse dështon
+    const newValueRaw = input.value.trim();
+    if (newValueRaw === rawValue) { cell.textContent = isNumber ? fmtMoney(rawValue) : (rawValue || "—"); return; }
+    const newValue = isNumber ? (Number(newValueRaw) || 0) : newValueRaw;
+    cell.textContent = isNumber ? fmtMoney(newValue) : (newValue || "—"); // optimistike, kthehet mbrapsht nga refresh() nëse dështon
     try {
       await api(`/api/admin/licenses/${id}`, { method: "PUT", body: JSON.stringify({ [field]: newValue }) });
       toast("U ruajt");
@@ -247,7 +256,10 @@ document.getElementById("tbody").addEventListener("click", (e) => {
 
 async function createLicense() {
   const clientName = document.getElementById("newClient").value.trim();
+  const phone = document.getElementById("newPhone").value.trim();
+  const city = document.getElementById("newCity").value.trim();
   const product = document.getElementById("newProduct").value.trim();
+  const amountPaid = document.getElementById("newAmount").value.trim();
   const durationDays = document.getElementById("newDays").value;
   if (!clientName || !product) { toast("Vendos klientin dhe programin"); return; }
   const btn = document.getElementById("createBtn");
@@ -256,10 +268,12 @@ async function createLicense() {
   try {
     const lic = await api("/api/admin/licenses", {
       method: "POST",
-      body: JSON.stringify({ clientName, product, durationDays }),
+      body: JSON.stringify({ clientName, product, durationDays, phone, city, amountPaid }),
     });
     document.getElementById("newClient").value = "";
-    document.getElementById("newProduct").value = "";
+    document.getElementById("newPhone").value = "";
+    document.getElementById("newCity").value = "";
+    document.getElementById("newAmount").value = "";
     toast("Licenca u krijua: " + lic.licenseKey);
     refresh();
   } finally {
@@ -273,6 +287,24 @@ async function extend(btn, id, days) {
   try {
     await api(`/api/admin/licenses/${id}/extend`, { method: "POST", body: JSON.stringify({ days }) });
     toast((days > 0 ? "+" : "") + days + " ditë u aplikuan");
+    refresh();
+  } finally {
+    setTimeout(() => { btn.disabled = false; }, 800);
+  }
+}
+
+// Lejon caktimin e çdo numri muajsh, pozitiv ose negativ (p.sh. 9, 10, 11, -5...)
+async function applyCustomMonths(btn, id) {
+  const input = btn.previousElementSibling;
+  const months = Number(input.value);
+  if (!Number.isFinite(months) || months === 0) { toast("Vendos një numër muajsh (p.sh. 9, -11)"); return; }
+  const days = Math.round(months * 30);
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    await api(`/api/admin/licenses/${id}/extend`, { method: "POST", body: JSON.stringify({ days }) });
+    toast((months > 0 ? "+" : "") + months + " muaj u aplikuan");
+    input.value = "";
     refresh();
   } finally {
     setTimeout(() => { btn.disabled = false; }, 800);
