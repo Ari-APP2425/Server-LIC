@@ -17,18 +17,20 @@ const DB_PATH = path.join(__dirname, "data.json");
 // Një licencë konsiderohet "online" nëse ka dërguar heartbeat brenda kësaj kohe
 const ONLINE_WINDOW_MS = 3 * 60 * 1000; // 3 minuta
 
-// Info suporti — kthehet te çdo heartbeat, që programet (ArkaPro, SofraPro etj.)
-// ta shfaqin te ekrani "Info Licencë" kur licenca aktivizohet/konfirmohet.
-const SUPPORT_INFO = {
-  contact: "+44 7384 697459",
-  instagram: "https://www.instagram.com/shqippro_/",
+// Vlerat e para-vendosura te suportit — përdoren vetëm nëse data.json s'ka ende "settings"
+// (p.sh. hera e parë që nis serveri). Më pas ndryshohen nga paneli, jo nga kodi.
+const DEFAULT_SETTINGS = {
+  supportPhone: "+44 7384 697459",
+  supportInstagram: "https://www.instagram.com/shqippro_/",
 };
 
 function readDB() {
   try {
-    return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
+    const db = JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
+    if (!db.settings) db.settings = { ...DEFAULT_SETTINGS };
+    return db;
   } catch {
-    return { licenses: [] };
+    return { licenses: [], settings: { ...DEFAULT_SETTINGS } };
   }
 }
 function writeDB(data) {
@@ -89,7 +91,7 @@ app.post("/api/heartbeat", (req, res) => {
     expiresAt: c.expiresAt,
     clientName: lic.clientName,
     businessName: lic.businessName || "",
-    support: SUPPORT_INFO,
+    support: { contact: db.settings.supportPhone, instagram: db.settings.supportInstagram },
   });
 });
 
@@ -102,6 +104,20 @@ function requireAdmin(req, res, next) {
   }
   next();
 }
+
+app.get("/api/admin/settings", requireAdmin, (req, res) => {
+  const db = readDB();
+  res.json(db.settings);
+});
+
+app.put("/api/admin/settings", requireAdmin, (req, res) => {
+  const { supportPhone, supportInstagram } = req.body || {};
+  const db = readDB();
+  if (typeof supportPhone === "string") db.settings.supportPhone = supportPhone.trim();
+  if (typeof supportInstagram === "string") db.settings.supportInstagram = supportInstagram.trim();
+  writeDB(db);
+  res.json(db.settings);
+});
 
 app.get("/api/admin/licenses", requireAdmin, (req, res) => {
   const db = readDB();
