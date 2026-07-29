@@ -121,6 +121,7 @@
           <option value="SofraPro">SofraPro</option>
           <option value="DyqanPro">DyqanPro</option>
           <option value="ArkaPro">ArkaPro</option>
+          <option value="PharmaPro">PharmaPro</option>
         </select>
       </div>
       <div class="field"><label for="newAmount">Shuma e Paguar (€)</label><input id="newAmount" type="number" min="0" step="0.01" placeholder="0" /></div>
@@ -152,7 +153,7 @@
 
 <script>
 let ADMIN_KEY = localStorage.getItem("licenseAdminKey") || "";
-const PROGRAMS = ["HotelPro", "SofraPro", "DyqanPro", "ArkaPro"];
+const PROGRAMS = ["HotelPro", "SofraPro", "DyqanPro", "ArkaPro", "PharmaPro"];
 
 function toast(msg) {
   const t = document.getElementById("toast");
