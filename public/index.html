@@ -53,6 +53,14 @@
   .field-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 10px; }
   .grid input, .grid select { width: 100%; }
+  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+    font-weight: 700; margin: 0 0 10px; }
+  .section-title.mt { margin-top: 18px; }
+  .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .field input, .field select { width: 100%; }
+  .form-divider { height: 1px; background: var(--line); margin: 18px 0; }
   #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--panel2);
     border: 1px solid var(--jade); padding: 10px 18px; border-radius: 10px; font-size: 13px; display: none; }
 </style>
@@ -73,37 +81,52 @@
 
   <div class="card">
     <div class="field-label">Kontakt Suporti (shfaqet te "Info Licencë" në të gjitha programet)</div>
-    <div class="grid" style="margin-bottom:10px;">
-      <input id="setPhone" placeholder="Nr. Telefoni Suporti (WhatsApp)" />
-      <input id="setInstagram" placeholder="Link Instagram" />
-      <input id="setFacebook" placeholder="Link Facebook" />
+    <div class="field-grid" style="margin-bottom:16px;">
+      <div class="field"><label for="setPhone">Nr. Telefoni (WhatsApp/Viber/Telegram)</label><input id="setPhone" placeholder="+44 7XXX XXX XXX" /></div>
+      <div class="field"><label for="setInstagram">Link Instagram</label><input id="setInstagram" placeholder="https://instagram.com/..." /></div>
+      <div class="field"><label for="setFacebook">Link Facebook</label><input id="setFacebook" placeholder="https://facebook.com/..." /></div>
     </div>
-    <div class="field-label">Numra Shtesë</div>
+    <div class="section-title">Numra Shtesë</div>
     <div id="extraPhonesList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
-    <button class="btn-ghost" onclick="addExtraPhoneRow()" style="margin-bottom:10px;">+ Shto Numër</button>
+    <button class="btn-ghost" onclick="addExtraPhoneRow()" style="margin-bottom:14px;">+ Shto Numër</button>
     <br>
     <button class="btn-primary" id="saveSettingsBtn" onclick="saveSettings()">Ruaj Ndryshimet</button>
   </div>
 
   <div class="card">
     <div class="field-label">Krijo Licencë të Re</div>
-    <div class="grid" style="margin-bottom:10px;">
-      <input id="newClient" placeholder="Emri i klientit" />
-      <input id="newBusiness" placeholder="Emri i Biznesit" />
-      <input id="newPhone" placeholder="Nr. Telefoni" />
-      <input id="newCity" placeholder="Qyteti" />
-      <select id="newProduct">
-        <option value="HotelPro">HotelPro</option>
-        <option value="SofraPro">SofraPro</option>
-        <option value="DyqanPro">DyqanPro</option>
-        <option value="ArkaPro">ArkaPro</option>
-      </select>
-      <input id="newAmount" type="number" min="0" step="0.01" placeholder="Shuma e Paguar (€)" />
-      <select id="newDays">
-        <option value="30">1 muaj</option>
-        <option value="365" selected>12 muaj</option>
-      </select>
+
+    <div class="section-title">Të dhënat e klientit</div>
+    <div class="field-grid">
+      <div class="field"><label for="newClient">Emri i klientit</label><input id="newClient" placeholder="p.sh. Agron Krasniqi" /></div>
+      <div class="field"><label for="newBusiness">Emri i Biznesit</label><input id="newBusiness" placeholder="p.sh. Hotel Adriatik" /></div>
+      <div class="field"><label for="newPhone">Nr. Telefoni</label><input id="newPhone" placeholder="p.sh. +355 6X XXX XXXX" /></div>
+      <div class="field"><label for="newCity">Qyteti</label><input id="newCity" placeholder="p.sh. Shkodër" /></div>
     </div>
+
+    <div class="form-divider"></div>
+
+    <div class="section-title">Të dhënat e licencës</div>
+    <div class="field-grid" style="margin-bottom:16px;">
+      <div class="field">
+        <label for="newProduct">Programi</label>
+        <select id="newProduct">
+          <option value="HotelPro">HotelPro</option>
+          <option value="SofraPro">SofraPro</option>
+          <option value="DyqanPro">DyqanPro</option>
+          <option value="ArkaPro">ArkaPro</option>
+        </select>
+      </div>
+      <div class="field"><label for="newAmount">Shuma e Paguar (€)</label><input id="newAmount" type="number" min="0" step="0.01" placeholder="0" /></div>
+      <div class="field">
+        <label for="newDays">Kohëzgjatja</label>
+        <select id="newDays">
+          <option value="30">1 muaj</option>
+          <option value="365" selected>12 muaj</option>
+        </select>
+      </div>
+    </div>
+
     <button class="btn-primary" id="createBtn" onclick="createLicense()">Krijo Licencën</button>
   </div>
 
