@@ -17,6 +17,13 @@ const DB_PATH = path.join(__dirname, "data.json");
 // Një licencë konsiderohet "online" nëse ka dërguar heartbeat brenda kësaj kohe
 const ONLINE_WINDOW_MS = 3 * 60 * 1000; // 3 minuta
 
+// Info suporti — kthehet te çdo heartbeat, që programet (ArkaPro, SofraPro etj.)
+// ta shfaqin te ekrani "Info Licencë" kur licenca aktivizohet/konfirmohet.
+const SUPPORT_INFO = {
+  contact: "+44 7384 697459",
+  instagram: "https://www.instagram.com/shqippro_/",
+};
+
 function readDB() {
   try {
     return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
@@ -81,6 +88,8 @@ app.post("/api/heartbeat", (req, res) => {
     daysLeft: c.daysLeft,
     expiresAt: c.expiresAt,
     clientName: lic.clientName,
+    businessName: lic.businessName || "",
+    support: SUPPORT_INFO,
   });
 });
 
@@ -100,7 +109,7 @@ app.get("/api/admin/licenses", requireAdmin, (req, res) => {
 });
 
 app.post("/api/admin/licenses", requireAdmin, (req, res) => {
-  const { clientName, product, durationDays, phone, city, amountPaid } = req.body || {};
+  const { clientName, businessName, product, durationDays, phone, city, amountPaid } = req.body || {};
   if (!clientName || !product) {
     return res.status(400).json({ error: "clientName dhe product kërkohen" });
   }
@@ -109,6 +118,7 @@ app.post("/api/admin/licenses", requireAdmin, (req, res) => {
     id: crypto.randomUUID(),
     licenseKey: genKey(),
     clientName,
+    businessName: typeof businessName === "string" ? businessName.trim() : "",
     product,
     phone: typeof phone === "string" ? phone.trim() : "",
     city: typeof city === "string" ? city.trim() : "",
@@ -141,11 +151,12 @@ app.post("/api/admin/licenses/:id/extend", requireAdmin, (req, res) => {
 
 // Editon të dhënat e një licence ekzistuese (pa e fshirë e rikrijuar).
 app.put("/api/admin/licenses/:id", requireAdmin, (req, res) => {
-  const { clientName, product, phone, city, amountPaid } = req.body || {};
+  const { clientName, businessName, product, phone, city, amountPaid } = req.body || {};
   const db = readDB();
   const lic = db.licenses.find((l) => l.id === req.params.id);
   if (!lic) return res.status(404).json({ error: "S'u gjet" });
   if (typeof clientName === "string" && clientName.trim()) lic.clientName = clientName.trim();
+  if (typeof businessName === "string") lic.businessName = businessName.trim();
   if (typeof product === "string" && product.trim()) lic.product = product.trim();
   if (typeof phone === "string") lic.phone = phone.trim();
   if (typeof city === "string") lic.city = city.trim();
