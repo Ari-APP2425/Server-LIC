@@ -69,6 +69,15 @@
   <div class="sub">Statusi i të gjitha programeve — online sinkronizohet automatikisht çdo 15 sekonda.</div>
 
   <div class="card">
+    <div class="field-label">Kontakt Suporti (shfaqet te "Info Licencë" në të gjitha programet)</div>
+    <div class="grid" style="margin-bottom:10px;">
+      <input id="setPhone" placeholder="Nr. Telefoni Suporti" />
+      <input id="setInstagram" placeholder="Link Instagram" />
+    </div>
+    <button class="btn-primary" id="saveSettingsBtn" onclick="saveSettings()">Ruaj Ndryshimet</button>
+  </div>
+
+  <div class="card">
     <div class="field-label">Krijo Licencë të Re</div>
     <div class="grid" style="margin-bottom:10px;">
       <input id="newClient" placeholder="Emri i klientit" />
@@ -130,7 +139,36 @@ function showGate() {
 function showApp() {
   document.getElementById("gate").style.display = "none";
   document.getElementById("app").style.display = "block";
+  loadSettings();
   refresh();
+}
+
+async function loadSettings() {
+  try {
+    const s = await api("/api/admin/settings");
+    document.getElementById("setPhone").value = s.supportPhone || "";
+    document.getElementById("setInstagram").value = s.supportInstagram || "";
+  } catch {}
+}
+
+async function saveSettings() {
+  const btn = document.getElementById("saveSettingsBtn");
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    await api("/api/admin/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        supportPhone: document.getElementById("setPhone").value.trim(),
+        supportInstagram: document.getElementById("setInstagram").value.trim(),
+      }),
+    });
+    toast("Kontakti i suportit u ruajt");
+  } catch {
+    toast("Gabim gjatë ruajtjes");
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function login() {
