@@ -45,7 +45,10 @@
   .editable input { background: var(--panel2); border: 1px solid var(--jade); color: var(--text);
     border-radius: 6px; padding: 5px 8px; font-size: 13px; font-family: inherit; width: 100%; outline: none; }
   button:disabled { opacity: .5; cursor: not-allowed; }
-  .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .row-actions { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
+  .action-group { display: flex; gap: 6px; align-items: center; }
+  .action-group button { flex: 1; white-space: nowrap; }
+  .action-group input.months-input { width: 60px; flex: 0 0 auto; }
   .gate { max-width: 360px; margin: 100px auto; }
   .field-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 10px; }
@@ -242,13 +245,19 @@ async function refresh() {
       <td><span class="pill ${pillClass}">${pillText}</span></td>
       <td>
         <div class="row-actions">
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',-30)">-1M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',30)">+1M</button>
-          <button class="btn-ghost" onclick="extend(this,'${lic.id}',365)">+12M</button>
-          <input type="number" class="months-input" placeholder="muaj" style="width:64px; padding:9px 8px;" />
-          <button class="btn-ghost" onclick="applyCustomMonths(this,'${lic.id}')">Apliko</button>
-          <button class="btn-ghost" onclick="revoke('${lic.id}')">${lic.revoked ? "Rikthe" : "Revoko"}</button>
-          <button class="btn-danger" onclick="del('${lic.id}')">Fshi</button>
+          <div class="action-group">
+            <button class="btn-ghost" onclick="extend(this,'${lic.id}',-30)">-1M</button>
+            <button class="btn-ghost" onclick="extend(this,'${lic.id}',30)">+1M</button>
+            <button class="btn-ghost" onclick="extend(this,'${lic.id}',365)">+12M</button>
+          </div>
+          <div class="action-group">
+            <input type="number" class="months-input" placeholder="muaj" />
+            <button class="btn-ghost" onclick="applyCustomMonths(this,'${lic.id}')">Apliko</button>
+          </div>
+          <div class="action-group">
+            <button class="btn-ghost" onclick="revoke('${lic.id}')">${lic.revoked ? "Rikthe" : "Revoko"}</button>
+            <button class="btn-danger" onclick="del('${lic.id}')">Fshi</button>
+          </div>
         </div>
       </td>`;
     tbody.appendChild(tr);
