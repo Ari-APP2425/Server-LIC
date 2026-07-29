@@ -71,9 +71,14 @@
   <div class="card">
     <div class="field-label">Kontakt Suporti (shfaqet te "Info Licencë" në të gjitha programet)</div>
     <div class="grid" style="margin-bottom:10px;">
-      <input id="setPhone" placeholder="Nr. Telefoni Suporti" />
+      <input id="setPhone" placeholder="Nr. Telefoni Suporti (WhatsApp)" />
       <input id="setInstagram" placeholder="Link Instagram" />
+      <input id="setFacebook" placeholder="Link Facebook" />
     </div>
+    <div class="field-label">Numra Shtesë</div>
+    <div id="extraPhonesList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
+    <button class="btn-ghost" onclick="addExtraPhoneRow()" style="margin-bottom:10px;">+ Shto Numër</button>
+    <br>
     <button class="btn-primary" id="saveSettingsBtn" onclick="saveSettings()">Ruaj Ndryshimet</button>
   </div>
 
@@ -148,7 +153,26 @@ async function loadSettings() {
     const s = await api("/api/admin/settings");
     document.getElementById("setPhone").value = s.supportPhone || "";
     document.getElementById("setInstagram").value = s.supportInstagram || "";
+    document.getElementById("setFacebook").value = s.supportFacebook || "";
+    const list = document.getElementById("extraPhonesList");
+    list.innerHTML = "";
+    (s.extraPhones || []).forEach((p) => addExtraPhoneRow(p));
   } catch {}
+}
+
+function addExtraPhoneRow(value = "") {
+  const list = document.getElementById("extraPhonesList");
+  const row = document.createElement("div");
+  row.style.display = "flex";
+  row.style.gap = "8px";
+  row.innerHTML = `
+    <input type="text" class="extra-phone-input" placeholder="Numër shtesë" value="${(value||"").replace(/"/g,'&quot;')}" style="flex:1;" />
+    <button class="btn-danger" type="button" onclick="this.parentElement.remove()">Hiq</button>`;
+  list.appendChild(row);
+}
+
+function getExtraPhonesValues() {
+  return Array.from(document.querySelectorAll(".extra-phone-input")).map((i) => i.value.trim()).filter(Boolean);
 }
 
 async function saveSettings() {
@@ -161,9 +185,12 @@ async function saveSettings() {
       body: JSON.stringify({
         supportPhone: document.getElementById("setPhone").value.trim(),
         supportInstagram: document.getElementById("setInstagram").value.trim(),
+        supportFacebook: document.getElementById("setFacebook").value.trim(),
+        extraPhones: getExtraPhonesValues(),
       }),
     });
     toast("Kontakti i suportit u ruajt");
+    loadSettings();
   } catch {
     toast("Gabim gjatë ruajtjes");
   } finally {
