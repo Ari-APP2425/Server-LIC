@@ -100,9 +100,13 @@
   </div>
 
   <div class="card">
-    <div class="field-label">Krijo Licencë të Re</div>
+    <div class="collapsible-header" onclick="toggleCreateCard()">
+      <div class="field-label" style="margin:0;">Krijo Licencë të Re</div>
+      <button class="btn-ghost" id="createToggleBtn" type="button">Hape</button>
+    </div>
+    <div id="createCardBody" style="display:none;">
 
-    <div class="section-title">Të dhënat e klientit</div>
+    <div class="section-title" style="margin-top:16px;">Të dhënat e klientit</div>
     <div class="field-grid">
       <div class="field"><label for="newClient">Emri i klientit</label><input id="newClient" placeholder="p.sh. Agron Krasniqi" /></div>
       <div class="field"><label for="newBusiness">Emri i Biznesit</label><input id="newBusiness" placeholder="p.sh. Hotel Adriatik" /></div>
@@ -135,6 +139,7 @@
     </div>
 
     <button class="btn-primary" id="createBtn" onclick="createLicense()">Krijo Licencën</button>
+    </div>
   </div>
 
   <div class="card" style="padding:0; overflow-x:auto;">
@@ -178,6 +183,7 @@ function showApp() {
   document.getElementById("gate").style.display = "none";
   document.getElementById("app").style.display = "block";
   initSupportCardToggle();
+  initCreateCardToggle();
   loadSettings();
   refresh();
 }
@@ -195,6 +201,21 @@ function toggleSupportCard() {
   body.style.display = willOpen ? "block" : "none";
   btn.textContent = willOpen ? "Mbylle" : "Hape";
   localStorage.setItem("supportCardOpen", willOpen ? "1" : "0");
+}
+
+function initCreateCardToggle() {
+  const open = localStorage.getItem("createCardOpen") === "1";
+  document.getElementById("createCardBody").style.display = open ? "block" : "none";
+  document.getElementById("createToggleBtn").textContent = open ? "Mbylle" : "Hape";
+}
+
+function toggleCreateCard() {
+  const body = document.getElementById("createCardBody");
+  const btn = document.getElementById("createToggleBtn");
+  const willOpen = body.style.display === "none";
+  body.style.display = willOpen ? "block" : "none";
+  btn.textContent = willOpen ? "Mbylle" : "Hape";
+  localStorage.setItem("createCardOpen", willOpen ? "1" : "0");
 }
 
 async function loadSettings() {
