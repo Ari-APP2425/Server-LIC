@@ -22,12 +22,16 @@ const ONLINE_WINDOW_MS = 3 * 60 * 1000; // 3 minuta
 const DEFAULT_SETTINGS = {
   supportPhone: "+44 7384 697459",
   supportInstagram: "https://www.instagram.com/shqippro_/",
+  supportFacebook: "",
+  extraPhones: [],
 };
 
 function readDB() {
   try {
     const db = JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
     if (!db.settings) db.settings = { ...DEFAULT_SETTINGS };
+    if (!db.settings.supportFacebook) db.settings.supportFacebook = "";
+    if (!Array.isArray(db.settings.extraPhones)) db.settings.extraPhones = [];
     return db;
   } catch {
     return { licenses: [], settings: { ...DEFAULT_SETTINGS } };
@@ -91,7 +95,12 @@ app.post("/api/heartbeat", (req, res) => {
     expiresAt: c.expiresAt,
     clientName: lic.clientName,
     businessName: lic.businessName || "",
-    support: { contact: db.settings.supportPhone, instagram: db.settings.supportInstagram },
+    support: {
+      contact: db.settings.supportPhone,
+      instagram: db.settings.supportInstagram,
+      facebook: db.settings.supportFacebook,
+      extraPhones: db.settings.extraPhones,
+    },
   });
 });
 
@@ -111,10 +120,16 @@ app.get("/api/admin/settings", requireAdmin, (req, res) => {
 });
 
 app.put("/api/admin/settings", requireAdmin, (req, res) => {
-  const { supportPhone, supportInstagram } = req.body || {};
+  const { supportPhone, supportInstagram, supportFacebook, extraPhones } = req.body || {};
   const db = readDB();
   if (typeof supportPhone === "string") db.settings.supportPhone = supportPhone.trim();
   if (typeof supportInstagram === "string") db.settings.supportInstagram = supportInstagram.trim();
+  if (typeof supportFacebook === "string") db.settings.supportFacebook = supportFacebook.trim();
+  if (Array.isArray(extraPhones)) {
+    db.settings.extraPhones = extraPhones
+      .filter((p) => typeof p === "string" && p.trim())
+      .map((p) => p.trim());
+  }
   writeDB(db);
   res.json(db.settings);
 });
