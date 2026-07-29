@@ -56,11 +56,12 @@
   .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
     font-weight: 700; margin: 0 0 10px; }
   .section-title.mt { margin-top: 18px; }
-  .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; }
+  .field-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 11.5px; color: var(--muted); font-weight: 600; }
   .field input, .field select { width: 100%; }
   .form-divider { height: 1px; background: var(--line); margin: 18px 0; }
+  .collapsible-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; }
   #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--panel2);
     border: 1px solid var(--jade); padding: 10px 18px; border-radius: 10px; font-size: 13px; display: none; }
 </style>
@@ -80,8 +81,12 @@
   <div class="sub">Statusi i të gjitha programeve — online sinkronizohet automatikisht çdo 15 sekonda.</div>
 
   <div class="card">
-    <div class="field-label">Kontakt Suporti (shfaqet te "Info Licencë" në të gjitha programet)</div>
-    <div class="field-grid" style="margin-bottom:16px;">
+    <div class="collapsible-header" onclick="toggleSupportCard()">
+      <div class="field-label" style="margin:0;">Kontakt Suporti (shfaqet te "Info Licencë" në të gjitha programet)</div>
+      <button class="btn-ghost" id="supportToggleBtn" type="button">Hape</button>
+    </div>
+    <div id="supportCardBody" style="display:none;">
+    <div class="field-grid" style="margin-top:16px; margin-bottom:16px;">
       <div class="field"><label for="setPhone">Nr. Telefoni (WhatsApp/Viber/Telegram)</label><input id="setPhone" placeholder="+44 7XXX XXX XXX" /></div>
       <div class="field"><label for="setInstagram">Link Instagram</label><input id="setInstagram" placeholder="https://instagram.com/..." /></div>
       <div class="field"><label for="setFacebook">Link Facebook</label><input id="setFacebook" placeholder="https://facebook.com/..." /></div>
@@ -91,6 +96,7 @@
     <button class="btn-ghost" onclick="addExtraPhoneRow()" style="margin-bottom:14px;">+ Shto Numër</button>
     <br>
     <button class="btn-primary" id="saveSettingsBtn" onclick="saveSettings()">Ruaj Ndryshimet</button>
+    </div>
   </div>
 
   <div class="card">
@@ -170,8 +176,24 @@ function showGate() {
 function showApp() {
   document.getElementById("gate").style.display = "none";
   document.getElementById("app").style.display = "block";
+  initSupportCardToggle();
   loadSettings();
   refresh();
+}
+
+function initSupportCardToggle() {
+  const open = localStorage.getItem("supportCardOpen") === "1";
+  document.getElementById("supportCardBody").style.display = open ? "block" : "none";
+  document.getElementById("supportToggleBtn").textContent = open ? "Mbylle" : "Hape";
+}
+
+function toggleSupportCard() {
+  const body = document.getElementById("supportCardBody");
+  const btn = document.getElementById("supportToggleBtn");
+  const willOpen = body.style.display === "none";
+  body.style.display = willOpen ? "block" : "none";
+  btn.textContent = willOpen ? "Mbylle" : "Hape";
+  localStorage.setItem("supportCardOpen", willOpen ? "1" : "0");
 }
 
 async function loadSettings() {
