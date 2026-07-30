@@ -322,6 +322,9 @@ async function refresh() {
             <button class="btn-ghost" onclick="applyCustomMonths(this,'${lic.id}')">Apliko</button>
           </div>
           <div class="action-group">
+            <button class="btn-ghost" onclick="resetDevice(this,'${lic.id}')" title="${(lic.deviceIds||[]).length ? "Lidhur me " + lic.deviceIds.length + " pajisje" : "Ende pa asnjë pajisje"}">Çliro pajisjen${(lic.deviceIds||[]).length ? ` (${lic.deviceIds.length})` : ""}</button>
+          </div>
+          <div class="action-group">
             <button class="btn-ghost" onclick="revoke('${lic.id}')">${lic.revoked ? "Rikthe" : "Revoko"}</button>
             <button class="btn-danger" onclick="del('${lic.id}')">Fshi</button>
           </div>
@@ -456,6 +459,14 @@ async function applyCustomMonths(btn, id) {
     setTimeout(() => { btn.disabled = false; }, 800);
   }
 }
+async function resetDevice(btn, id) {
+  if (!confirm("Të çlirohet kjo licencë nga pajisja aktuale? Herës tjetër që hapet programi, do të lidhet me pajisjen e re.")) return;
+  btn.disabled = true;
+  await api(`/api/admin/licenses/${id}/reset-device`, { method: "POST" });
+  btn.disabled = false;
+  load();
+}
+
 async function revoke(id) {
   await api(`/api/admin/licenses/${id}/revoke`, { method: "POST" });
   refresh();
