@@ -76,14 +76,28 @@ app.post("/api/heartbeat", (req, res) => {
   if (!licenseKey) {
     return res.status(400).json({ valid: false, error: "licenseKey kërkohet" });
   }
+  if (!deviceId) {
+    return res.status(400).json({ valid: false, error: "deviceId kërkohet" });
+  }
   const db = readDB();
   // Kërkojmë vetëm me licenseKey — jo edhe me "product", sepse emri i programit
   // mund të ndryshojë më vonë dhe s'duam që kjo të prishë licencat ekzistuese.
   const lic = db.licenses.find((l) => l.licenseKey === licenseKey);
   if (!lic) return res.status(404).json({ valid: false, error: "Licencë e panjohur" });
 
+  // --- Kufizim: një licencë = një pajisje ---
+  // Pajisja e parë që dërgon heartbeat e "zë" licencën (lic.deviceIds[0]).
+  // Çdo pajisje tjetër me deviceId të ndryshëm refuzohet.
+  if (lic.deviceIds.length > 0 && !lic.deviceIds.includes(deviceId)) {
+    return res.status(403).json({
+      valid: false,
+      error: "Kjo licencë është tashmë në përdorim në një pajisje tjetër. Kontakto suportin nëse ke ndërruar kompjuterin.",
+      deviceLocked: true,
+    });
+  }
+  if (!lic.deviceIds.includes(deviceId)) lic.deviceIds.push(deviceId);
+
   lic.lastSeen = Date.now();
-  if (deviceId && !lic.deviceIds.includes(deviceId)) lic.deviceIds.push(deviceId);
   writeDB(db);
 
   const c = withComputed(lic);
@@ -192,6 +206,17 @@ app.put("/api/admin/licenses/:id", requireAdmin, (req, res) => {
   if (typeof phone === "string") lic.phone = phone.trim();
   if (typeof city === "string") lic.city = city.trim();
   if (amountPaid !== undefined && Number.isFinite(Number(amountPaid))) lic.amountPaid = Number(amountPaid);
+  writeDB(db);
+  res.json(withComputed(lic));
+});
+
+// Çliron licencën nga pajisja e lidhur, që klienti të mund ta aktivizojë
+// përsëri në një kompjuter tjetër (p.sh. pas formatimit ose ndërrimit të PC-së).
+app.post("/api/admin/licenses/:id/reset-device", requireAdmin, (req, res) => {
+  const db = readDB();
+  const lic = db.licenses.find((l) => l.id === req.params.id);
+  if (!lic) return res.status(404).json({ error: "S'u gjet" });
+  lic.deviceIds = [];
   writeDB(db);
   res.json(withComputed(lic));
 });
